@@ -28,6 +28,7 @@ program autodarc
     real*8,allocatable :: orbitalsLarge(:,:)
     real*8,allocatable :: orbitalsSmall(:,:)
     real*8,allocatable :: darcRadial(:)
+    character*2,allocatable:: angular_string(:)
 
     real*8,allocatable :: potential(:,:)
     real*8,allocatable :: orbitalParams(:)
@@ -75,7 +76,7 @@ program autodarc
     contains
 
     subroutine orthogonaliseGramSchmidt
-        !Implements the (not modified) GramSchmidt procress as described on 
+        !Implements the (modified) GramSchmidt procress as described on 
         !https://en.wikipedia.org/wiki/Gram–Schmidt_process
 
         !The code only orthogonalises radial orbitals of the same kappa.
@@ -127,6 +128,7 @@ program autodarc
         !print*,'unique kappa',uniqueKappa(1:numUniqueKappa)
 
         !loop over all kappa groups and orthogonalise.
+        write(*,2)
         do kk = 1, numUniqueKappa
 
             targetKappa = uniqueKappa(kk)
@@ -154,9 +156,25 @@ program autodarc
                 orbitalsSmall(iii,:) = orbitalsSmall(iii,:)/sqrt(overlap)
                 orbitalsLarge(iii,:) = orbitalsLarge(iii,:)/sqrt(overlap)
             end do 
+            write(*,4)
+            do ii=1,numThisKappa 
+                do jj=ii,numThisKappa 
+                    iii = orbMapKappa(ii)
+                    jjj = orbMapKappa(jj) 
+                    overlap = overlapRadial(darcRadial,orbitalsSmall(iii,:),orbitalsLarge(iii,:),orbitalsSmall(jjj,:),orbitalsLarge(jjj,:))
+                    write(*,3) princNREL(iii),angular_string(iii),princNREL(jjj),angular_string(jjj),overlap
+                end do 
+            end do
+                
+
+
 
         end do 
         1 format (' Orthonormalizing same-kappa orbitals.')
+        2 format (' Orthonormalization data:')
+        3 format ('   ',I2,A2,1X,I2,A2,1X,ES10.3)
+        4 format ('     Shells   Overlap')
+
     end subroutine
 
     subroutine readConfig 
@@ -414,7 +432,6 @@ program autodarc
         real*8,allocatable :: newOrb(:),smallComp(:)
         real*8,allocatable :: orbForDeriv(:,:),derivative
 
-        character*2,allocatable:: angular_string(:)
 
         character*2 :: angular_symbols_neg(5) = (/'s ','p ','d ','f ','g ' /)
         character*2 :: angular_symbols_pos(4) =      (/'p-','d-','f-','g-' /)
@@ -570,7 +587,7 @@ program autodarc
     end function
 
     function overlapRadial(radial,small1,large1,small2,large2)
-        !overlap of a dirac radial orbital .
+        !overlap of a pair of dirac radial orbitals (P1,Q1) and (P2,Q2) .
         real*8 :: radial(:),small1(:),large1(:),small2(:),large2(:)
         integer :: np, ii  
         real*8 :: overlapRadial,contribution 
