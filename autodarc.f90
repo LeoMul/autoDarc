@@ -574,6 +574,7 @@ program autodarc
 
         hff = log(radial(size(radial))/rnt +1.0d0) / darcDim
 
+        allocate(darcRadial(darcDim+1))
 
         allocate(yy2(num_points))
         allocate(rhoArray(size(darcRadial)))
@@ -581,7 +582,6 @@ program autodarc
             rhoArray(ii) = (ii-1) * hff 
         end do 
 
-        allocate(darcRadial(darcDim+1))
 
         do ii = 1,darcDim+1
             darcRadial(ii) = rnt*(exp(hff*(ii-1))-1.0d0)
@@ -802,9 +802,12 @@ program autodarc
         
         INTEGER n,NMAX
         DOUBLE PRECISION yp1,ypn,x(n),y(n),y2(n)
-        PARAMETER (NMAX=2000)
+        PARAMETER (NMAX=20000)
         INTEGER i,k
         DOUBLE PRECISION p,qn,sig,un,u(NMAX)
+        if (n.gt.nmax) then 
+            stop 'increase nmax in spline routines'
+        end if 
         if (yp1.gt..99d30) then
           y2(1)=0.d0
           u(1)=0.d0
