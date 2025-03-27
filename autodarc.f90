@@ -42,13 +42,13 @@ program autodarc
     
     real*8,allocatable :: genOcc(:)
 
-    integer :: key,num_orbs,mb,nelec,jj,kk
+    integer :: key,num_orbs,mb,nelec
     integer*4 :: num_points
-    real*8 :: nzed ,a,lambda
+    real*8 :: nzed 
     character*2 :: angular_symbols_neg(5) = (/'s ','p ','d ','f ','g ' /)
     character*2 :: angular_symbols_pos(4) =      (/'p-','d-','f-','g-' /)
     integer,allocatable :: kappaArray(:),princNREL(:),orbMap(:)
-    integer :: numRelOrbs , ii 
+    integer :: numRelOrbs 
 
     real*8 :: rnt
     real*8 :: hff 
@@ -81,68 +81,13 @@ program autodarc
     call writeTargetInp
     write(*,1)
 
-    call testingSmallR
+    !call testingSmallR
 
     call writeORBINGrasp0
     call writeOutAutoOrbitals
     1 format('------------------------------------------------------------------------')
 
     contains
-
-
-
-    subroutine testingSmallR 
-        real*8,allocatable :: smallR(:),smallRDeriv(:),small(:)
-        real*8,allocatable :: eps(:)
-        real*8 :: a,b,lambda,l ,norm
-        integer :: ii ,pointUsed
-        allocate(smallR(num_points))
-        allocate(smallRDeriv(num_points))
-        allocate(small(num_points))
-
-        eps = -2.0d0 * orbitalEnergy
-        !needs to be negative and in rydbergs. 
-        pointUsed = 4
-
-        l = orbL(1)
-        !s orbital - b != 0
-
-        !b parameter - Cowan 1980 
-        b = (eps(1) + 4.0 / (fineStruc*fineStruc))  / (2.0 * nzed) 
-        b = 1.0 / (1.0 + b*radial(pointUsed))
-
-        lambda  =  l*(l+1.0) + 0.25*(1.0 + b)**2 - fineStruc*fineStruc*nzed*nzed
-        lambda = -1.0 + 0.5*(1.0-b) + sqrt(lambda)
-
-        a = (lambda + 2.0 + b) * (lambda + 1) - l*(l+1) + fineStruc*fineStruc*nzed*nzed
-        a = -(2.0 + fineStruc*fineStruc*eps(1)) * nzed /a
-
-        smallR = radial ** (lambda+1) + a * radial ** (lambda+2)
-
-        norm = orbitals(1,pointUsed) / smallR(pointUsed)
-
-        smallR = smallR * norm 
-        smallRDeriv = norm * ( (lambda+1)*radial ** (lambda) + a * &
-                            (lambda+2.0d0) * radial ** (lambda+1) )
-
-
-        small = (smallRDeriv  - orbitals(1,:) / radial)*0.5d0 * fineStruc
-        small(1) = 0.0d0 
-
-        open(1,file='test')
-        do ii = 1,size(smallR)
-            write(1,*) radial(ii),smallR(ii),orbitals(1,ii),smallRDeriv(ii),small(ii)
-        end do 
-        close(1)
-
-        !open(1,file='smallcompTest')
-        !do ii = 1,size(smallR)
-        !    write(1,*) radial(ii),smallR(ii),orbitals(1,ii),smallRDeriv(ii)
-        !end do 
-        !close(1)
-
-
-    end subroutine
 
     subroutine optionalInput 
         namelist/autoDarc/ callOrthog
@@ -190,7 +135,7 @@ program autodarc
 
 
         integer :: ii,jj,numThisKappa,iii,jjj,kk
-        real*8 :: norm ,overlap
+        real*8 :: overlap
 
         integer,allocatable :: orbMapKappa(:)
         integer :: targetKappa,numUniqueKappa
@@ -388,11 +333,9 @@ program autodarc
         !dummy quantities such as point number are forgotten about.
         character*6,parameter :: atom = '      '
         character*6,parameter :: term = '      '
-        character*3 :: el
     
         character*6,parameter :: file ='radout'
 
-        real*8,allocatable :: smallComp(:)
 
 
         real*8 :: DA(5)
@@ -436,6 +379,11 @@ program autodarc
             !extract near nucleus expansion parameter, set first orbital entry to zero.
             orbitalParams(i) = orbitals(i,1) 
             orbitals(i,1)  = 0.0d0 
+
+            !lpm 26.03.25 
+            call estimateAZ(int(i,8),orbitalParams(i))
+            print*,orbitalParams(i)
+
         end do 
         close(1)
         
@@ -450,10 +398,7 @@ program autodarc
         2 format(I5,2(I4,2(1PE14.7)))
         !header for each orbital.
         3 format(3I5,I3,F5.1,2X,F12.6,I6,29X,A4)
-
-        4 format('Write out output:')
-
-
+!        4 format('Write out output:'
     10    format(' Reading radout from AUTOSTRUCTURE')
     11    format(' Found ',I4,' non-relativistic orbitals with ',I5,' radial points.')
     end subroutine
@@ -508,26 +453,51 @@ program autodarc
 
     end subroutine
 
-    !subroutine FischerOutTest 
-    !    real*8 :: rhoArray(220)
-    !    real*8 :: FischerRadial(220)
-    !    real*8 :: orbitalFischer(220)
-    !    integer :: jj,ii   
-!
-    !    do jj = 1,220
-    !        rhoArray(jj) = -4.0d0 + (jj-1)/16.0d0 
-    !    end do 
-    !    
-    !    FischerRadial = exp(rhoArray) / nzed 
-    !    
-    !    do ii =  1,num_orbs 
-    !        call SPLINE(num_points,radial,orbitals(orbMap(jj),:),asp,bsp,csp)
-    !    end do 
-!
-!
-!
-    !
-    !end subroutine  
+    subroutine estimateAZ(orbital_index,az)
+
+        !calculate the best az to use
+        !i.e - the best value of the derivative of the wavefunction at zero.
+        !only makes sense to use this for s orbitals, really 
+        !as strictly (in a non-relativistic setting) the derivative is zero 
+        !for l>= 1 at r=0. 
+
+        real*8,intent(out) :: az
+        real*8 :: int1,int2 
+        real*8 :: rmax 
+        real*8,allocatable ::table0(:), table1(:),table2(:)
+        integer :: ii,cutoff 
+        integer*8 :: orbital_index
+
+        integer :: l 
+        az = 0.0d0 
+        rmax = 1.e-3 
+        l = orbL(orbital_index)
+
+        cutoff = minloc(abs(radial - rmax ),1)
+        cutoff = 12
+        allocate(table0(cutoff))
+        allocate(table1(cutoff))
+        allocate(table2(cutoff))
+
+        int1 = 0.d0 
+        int2 = 0.d0
+
+        table0 = radial**(l+1) * (1.0d0 - nzed * radial)
+        !table1 = table0 * orbitals(orbital_index,1:cutoff)
+        do ii = 1,cutoff
+            table1(ii) = table0(ii) * orbitals(orbital_index,ii)
+        end do
+        table2 = table0 * table0
+
+
+        do ii = 1,cutoff-1
+            int1 = int1 + (table1(ii+1)+table1(ii)) * (radial(ii+1)-radial(ii))
+            int2 = int2 + (table2(ii+1)+table2(ii)) * (radial(ii+1)-radial(ii))
+        end do 
+        print*,cutoff,radial(cutoff)
+        az = int1/int2 
+
+    end subroutine
 
     subroutine interpolateToDarc 
         !interpolates the as non-relativistic orbitals
@@ -541,28 +511,32 @@ program autodarc
         !This is also what is done in COMPAS' rwfnmchfmcdf program.
         !See https://github.com/compas/grasp.
 
-
-        real*8,allocatable :: asp(:),bsp(:),csp(:)
-        real*8,allocatable :: yy2(:)
-        real*8 :: sev
         real*8 :: h 
 
         integer, parameter :: darcDim = 200
 
         real*8 :: nf 
 
-        integer :: ii,jj,kk
-        real*8,allocatable :: newOrb(:),smallComp(:)
+        integer :: ii,jj,i
         real*8,allocatable :: orbForDeriv(:,:),derivative
         real*8,allocatable :: rhoArray(:)
         REAL*8 ,allocatable :: potTest(:)
         REAL*8 ,allocatable :: den(:)
 
+            !cff grid
+        real*8 :: rho
+        real*8 :: hff = 1.d0/16.d0
+        integer,parameter :: n0 = 220
+        real*8 :: hfgrid(n0+1)
+        real*8 :: selectedOrb(n0+1)
+        real*8 :: selectedgrid(n0+1)
+        real*8 :: yy2(n0+1)
+        integer :: closestInd,numHFpoints
 
         allocate(angular_string(numRelOrbs))
         
 
-        rnt = EXP (-65.0D00/16.0D00) / nzed
+        !rnt = EXP (-65.0D00/16.0D00) / nzed
         !rnt = 1e-2
         !this is the spacing in logspace. set it so that 
         !the grid covers up to (around) the last point output by 
@@ -570,74 +544,105 @@ program autodarc
         !i lost some of my sanity to a numerically broken down orbitsl
         !because of this.
         !let it be a lesson kids, check stuff. i guess.
-        ! - lpm 22.04.25 
+        ! - lpm 22.02.25 
 
+        !to interpoalte - need a small number of points
+        !look at the CFF grid - performs the best
+        rho =  -4.d0 
+        do i = 1,n0 
+            hfgrid(i+1) = exp(rho)/nzed
+            rho = rho + hff
+        end do 
+
+
+
+        rnt=1e-3
         hff = log(radial(size(radial))/rnt +1.0d0) / darcDim
 
-        allocate(darcRadial(darcDim+1))
+        allocate(darcRadial(darcDim))
 
-        allocate(yy2(num_points))
+        !allocate(yy2(num_points))
+
         allocate(rhoArray(size(darcRadial)))
         do ii = 1,size(darcRadial)
             rhoArray(ii) = (ii-1) * hff 
         end do 
 
 
-        do ii = 1,darcDim+1
+        do ii = 1,darcDim
             darcRadial(ii) = rnt*(exp(hff*(ii-1))-1.0d0)
         end do
 
         h = darcRadial(2)/10000.0d0
-        allocate(asp(num_points))
-        allocate(bsp(num_points))
-        allocate(csp(num_points))
-        allocate(orbitalsLarge(numRelOrbs,darcDim+1))
-        allocate(orbitalsSmall(numRelOrbs,darcDim+1))
+        !allocate(asp(num_points))
+        !allocate(bsp(num_points))
+        !allocate(csp(num_points))
+        allocate(orbitalsLarge(numRelOrbs,darcDim))
+        allocate(orbitalsSmall(numRelOrbs,darcDim))
 
-        allocate(orbForDeriv(darcDim+1,4))
+        allocate(orbForDeriv(darcDim,2))
         !Initialise
         orbitalsLarge = 0.0d0 
         orbitalsSmall = 0.0d0 
         write(*,1)
+        allocate(potTest(darcDim))
+        allocate(den(darcDim))
         potTest = -nzed / darcRadial
+        
+       
         do jj = 1,numRelOrbs
+
+            !Select the radial points closeest to a more 
+            !sparse grid. - allows for better numerical stability §
+            !near the nucleus. 
+            do ii = 1,n0 
+                if (hfgrid(ii+1).lt.radial(size(radial))) then
+                    closestInd = minloc(abs(radial - hfgrid(ii+1)),1)
+                    selectedOrb(ii+1) = orbitals(orbMap(jj),closestInd)
+                    selectedgrid(ii+1) = radial(closestInd)
+                else 
+                    numHFpoints = ii+1
+                    exit
+                end if 
+            end do 
+            do ii = numHFpoints+1,n0 
+                selectedgrid(ii+1) = hfgrid(ii+1)
+            end do
+
+
+
             orbForDeriv = 0.0d0 
-            !call SPLINE(num_points,radial,orbitals(orbMap(jj),:),asp,bsp,csp)
-            den = -2.0d0*orbitalEnergy(orbmap(jj)) - potTest
+
+            !orbitalEnergy In hartrees already 
+            !needs to be minus though - bound orbital. 
+            den = -1.0d0*orbitalEnergy(orbmap(jj)) - potTest
+
             den = 1.0 + 0.25d0*fineStruc*fineStruc*den
-
+            
+            !For s orbitals - use the derivative at zero to get a better 
+            !interpolation.
             if (kappaArray(jj).eq.-1) then 
-                print*,'using more accuate'
-                call splineFischer(radial,orbitals(orbMap(jj),:),num_points,orbitalParams(orbmap(jj)),0.0d0,yy2)
+                !print*,'using more accuate',orbitalParams(orbmap(jj))
+                call spline(selectedgrid,selectedorb,numHFpoints,orbitalParams(orbmap(jj)),0.0d0,yy2)
             else 
-                call splineFischer(radial,orbitals(orbMap(jj),:),num_points,0.0d0,0.0d0,yy2)
+                call spline(selectedgrid,selectedorb,numHFpoints,0.0d0,0.0d0,yy2)
             end if 
+
             !Large component
-            do ii = 2,darcDim+1
-
-                call splintFischer(radial,orbitals(orbMap(jj),:),yy2,num_points,darcRadial(ii),orbitalsLarge(jj,ii))
-                call splintFischer(radial,orbitals(orbMap(jj),:),yy2,num_points,darcRadial(ii)-h      ,orbForDeriv(ii,1))
-                call splintFischer(radial,orbitals(orbMap(jj),:),yy2,num_points,darcRadial(ii)+h      ,orbForDeriv(ii,2))
-                call splintFischer(radial,orbitals(orbMap(jj),:),yy2,num_points,darcRadial(ii)-2.0d0*h,orbForDeriv(ii,3))
-                call splintFischer(radial,orbitals(orbMap(jj),:),yy2,num_points,darcRadial(ii)+2.0d0*h,orbForDeriv(ii,4))
-
-            end do 
-            !Small component
-
             do ii = 2,darcDim
-
-                !derivative = (orbitalsLarge(jj,ii+1)-orbitalsLarge(jj,ii-1)) / (2.0 * hff)
-                !derivative = exp(-rhoArray(ii))*derivative/RNT
-
-                derivative = (orbForDeriv(ii,2) - orbForDeriv(ii,1))/(2.0d0*h)
-
-                !derivative = (orbForDeriv(ii,3) - 8.0d0*orbForDeriv(ii,1) + 8.0d0*orbForDeriv(ii,2) - orbForDeriv(ii,4))/(12.0d0*h)
-
-                orbitalsSmall(jj,ii) = derivative + kappaArray(jj)*orbitalsLarge(jj,ii)/darcRadial(ii)
-
-                !orbitalsSmall(jj,ii) = derivative -1.0d0*orbitalsLarge(jj,ii)/darcRadial(ii)
+                call splint(selectedgrid,selectedorb,yy2,numHFpoints,darcRadial(ii),orbitalsLarge(jj,ii))
+                call splint(selectedgrid,selectedorb,yy2,numHFpoints,darcRadial(ii)-h,orbForDeriv(ii,1))
+                call splint(selectedgrid,selectedorb,yy2,numHFpoints,darcRadial(ii)+h,orbForDeriv(ii,2))
             end do 
-            orbitalsSmall(jj,:) = orbitalsSmall(jj,:) * 0.5d0 *fineStruc/den
+
+            !Small component
+            !SKIP POINT 1 = 0 
+            do ii = 2,darcDim
+                derivative = (orbForDeriv(ii,2) - orbForDeriv(ii,1))/(2.0d0*h)
+                orbitalsSmall(jj,ii) = derivative + kappaArray(jj)*orbitalsLarge(jj,ii)/darcRadial(ii)
+            end do 
+
+            orbitalsSmall(jj,:) = orbitalsSmall(jj,:) * 0.5d0 *fineStruc
 
             !Normalise 
             NF = SQRT(normFactor(darcRadial,orbitalsSmall(jj,:),orbitalsLarge(jj,:)))
@@ -647,17 +652,17 @@ program autodarc
 
         end do 
         write(*,2) rnt,darcDim+1,hff
-        !write(*,5)
         write(*,1000)
         write(*,1020)
+
+        !Write out info
         do ii = 1,numRelOrbs
             if     (kappaArray(ii) .ge. 0) then 
                 angular_string(ii) = angular_symbols_pos(kappaArray(ii))
             elseif (kappaArray(ii) .le. 0) then
                 angular_string(ii) = angular_symbols_neg(abs(kappaArray(ii)))
             else   
-                !in principal this should never be reached. only if kappa==0
-                angular_string(ii) = 'NULL'
+                angular_string(ii) = 'NU'
         end if 
 
             write(*,1010) princNREL(ii),angular_string(ii),kappaArray(ii),orbitalEnergy(orbMap(ii)) &
@@ -796,72 +801,65 @@ program autodarc
     end function
 
 
-
-    SUBROUTINE splineFischer(x,y,n,yp1,ypn,y2)
-        !numerical recipes 
+        SUBROUTINE spline(x,y,n,yp1,ypn,y2)
+            INTEGER n,NMAX
+            DOUBLE PRECISION yp1,ypn,x(n),y(n),y2(n)
+            PARAMETER (NMAX=500)
+            INTEGER i,k
+            DOUBLE PRECISION p,qn,sig,un,u(NMAX)
+            !print*,'hello',n,yp1,ypn
+            if (yp1.gt..99d30) then
+              y2(1)=0.d0
+              u(1)=0.d0
+            else
+              y2(1)=-0.5d0
+              u(1)=(3.d0/(x(2)-x(1)))*((y(2)-y(1))/(x(2)-x(1))-yp1)
+            endif
+            do 11 i=2,n-1
+              sig=(x(i)-x(i-1))/(x(i+1)-x(i-1))
+              p=sig*y2(i-1)+2.d0
+              y2(i)=(sig-1.d0)/p
+              u(i)=(6.d0*((y(i+1)-y(i))/(x(i+ 1)                        &
+             -x(i))-(y(i)-y(i-1))/(x(i)-x(i-1)))/(x(i+1)-x(i-1))-sig*   &
+              u(i-1))/p
+        11    continue
+            if (ypn.gt..99d30) then
+              qn=0.d0
+              un=0.d0
+            else
+              qn=0.5d0
+              un=(3.d0/(x(n)-x(n-1)))*(ypn-(y(n)-y(n-1))/(x(n)-x(n-1)))
+            endif
+            y2(n)=(un-qn*u(n-1))/(qn*y2(n-1)+1.d0)
+            do 12 k=n-1,1,-1
+              y2(k)=y2(k)*y2(k+1)+u(k)
+        12    continue
+            return
+            END SUBROUTINE
         
-        INTEGER n,NMAX
-        DOUBLE PRECISION yp1,ypn,x(n),y(n),y2(n)
-        PARAMETER (NMAX=20000)
-        INTEGER i,k
-        DOUBLE PRECISION p,qn,sig,un,u(NMAX)
-        if (n.gt.nmax) then 
-            stop 'increase nmax in spline routines'
-        end if 
-        if (yp1.gt..99d30) then
-          y2(1)=0.d0
-          u(1)=0.d0
-        else
-          y2(1)=-0.5d0
-          u(1)=(3.d0/(x(2)-x(1)))*((y(2)-y(1))/(x(2)-x(1))-yp1)
-        endif
-        do 11 i=2,n-1
-          sig=(x(i)-x(i-1))/(x(i+1)-x(i-1))
-          p=sig*y2(i-1)+2.d0
-          y2(i)=(sig-1.d0)/p
-          u(i)=(6.d0*((y(i+1)-y(i))/(x(i+ 1)                        &
-         -x(i))-(y(i)-y(i-1))/(x(i)-x(i-1)))/(x(i+1)-x(i-1))-sig*   &
-          u(i-1))/p
-  11    continue
-        if (ypn.gt..99d30) then
-          qn=0.d0
-          un=0.d0
-        else
-          qn=0.5d0
-          un=(3.d0/(x(n)-x(n-1)))*(ypn-(y(n)-y(n-1))/(x(n)-x(n-1)))
-        endif
-        y2(n)=(un-qn*u(n-1))/(qn*y2(n-1)+1.d0)
-        do 12 k=n-1,1,-1
-          y2(k)=y2(k)*y2(k+1)+u(k)
-  12    continue
-        return
-        END SUBROUTINE
-  
-        SUBROUTINE splintFischer(xa,ya,y2a,n,x,y)
-        !numerical recipes 
-
-        INTEGER n
-        DOUBLE PRECISION x,y,xa(n),y2a(n),ya(n)
-        INTEGER k,khi,klo
-        DOUBLE PRECISION a,b,h
-        klo=1
-        khi=n
-  1     if (khi-klo.gt.1) then
-          k=(khi+klo)/2
-          if(xa(k).gt.x)then
-            khi=k
-          else
-            klo=k
-          endif
-        goto 1
-        endif
-        h=xa(khi)-xa(klo)
-        if (h.eq.0.d0) print *, ' bad xa input in splint'
-        a=(xa(khi)-x)/h
-        b=(x-xa(klo))/h
-        y=a*ya(klo)+b*ya(khi)+((a**3-a)*y2a(klo)+(b**3-b)*y2a(khi))* &
-          (h**2)/6.d0
-        return
-        END  SUBROUTINE
+            SUBROUTINE splint(xa,ya,y2a,n,x,y)
+            INTEGER n
+            DOUBLE PRECISION x,y,xa(n),y2a(n),ya(n)
+            INTEGER k,khi,klo
+            DOUBLE PRECISION a,b,h
+            klo=1
+            khi=n
+        1     if (khi-klo.gt.1) then
+              k=(khi+klo)/2
+              if(xa(k).gt.x)then
+                khi=k
+              else
+                klo=k
+              endif
+            goto 1
+            endif
+            h=xa(khi)-xa(klo)
+            if (h.eq.0.d0) print *, ' bad xa input in splint'
+            a=(xa(khi)-x)/h
+            b=(x-xa(klo))/h
+            y=a*ya(klo)+b*ya(khi)+((a**3-a)*y2a(klo)+(b**3-b)*y2a(khi))* &
+              (h**2)/6.d0
+            return
+            END  SUBROUTINE
 end
 
