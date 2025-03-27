@@ -1,7 +1,7 @@
 # autoDarc
 This code parses the output of Nigel Badnell's `AUTOSTRUCTURE` atomic code (https://amdpp.phys.strath.ac.uk/autos/) and outputs a `TARGET.INP` that can be used in the `DARC` R-matrix codes of Norrington et al (https://connorb.freeshell.org).
 
-The `AUTOSTRUCTURE` atomic code is a 'kappa-averaged' relativistic code - outputting non-relativistic orbitals (see Cowan's book). These radial orbitals are then converted to their relativistic counterparts via the relations,
+The `AUTOSTRUCTURE` atomic code is a 'kappa-averaged' relativistic code - outputting non-relativistic orbitals (see Cowan's book). In order to connect these with a relativistic code, the package held in this repository conversts them to their relativistic counterparts via the relations,
 
 $$\begin{array}{c}
 P_{n\kappa}(r) = P_{nl}(r),\\
