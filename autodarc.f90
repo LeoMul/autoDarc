@@ -1,12 +1,25 @@
 !Program to parse autostructure data to the 
 !darc R-matrix codes. 
 
-!The code right now assumes an IC input, producing a list of Dirac-orbitals.
+!The code right now assumes an IC(R) input, producing a list of Dirac-orbitals.
 !The large components are taken as the AS orbital: 
 !   P_nk = P_nl .
 !The small components are taken to be: 
-!   Q_nk = 0.5 * \alpha * (d/dr + \kappa/r) * P_nl 
+!   Q_nk = 0.5 * \alpha * (d/dr + \kappa/r) * P_nl + O(\alpha^2)
 
+!(Aside:
+!The above expansion is is a truncation of the full: 
+
+!   Q_nk = 0.5 * \alpha * (d/dr + \kappa/r) * P_nl / [1+ 0.25 alpha^2 * (e-V)]
+!The correction only really matters close to the nucleus - where the potential
+!is close to being a purely hydrogenic -Z/r where Z is the full nuclear charge.
+!)
+
+!which are then normalised according to:
+
+!\int dr (PP* + QQ*) = 1.
+
+!Notes:
 !Using these non-relativistic orbitals from optimizing a 
 !Breit-Pauli-Schrodinger Hamiltonian in a Dirac Hamiltonian
 !is equivalent to the so-called RCI-P method, as breifly introduced in 
@@ -15,6 +28,15 @@
 
 !This provides a way to use the much more efficient jj-coupled darc r-matrix codes.
 !Instead of first doing an LS run and doing an expensive re-couple using stgjk. 
+
+!To do: 
+!Have each of the routines called optionally.
+!Replace the optional input routine with command line options.
+!I am of the opinion that utility codes such as these should be
+!simply ran from the command line instead of worying about inputs 
+!and optimizing runs.
+!The above points go hand in hand.
+!https://cyber.dabamos.de/programming/modernfortran/command-line-arguments.html
 
 
 program autodarc 
