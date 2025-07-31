@@ -14,7 +14,9 @@ $$
 r_j = R \big( e^{(j-1)h} -1 \big),
 $$
 
-using routines from the standard numerical `FORTRAN` recipes. The orbitals are then able to be used in `DARC` in a CI sense - using these semi-relativistic orbitals for an R-matrix calculation. Alternatively, these can be used as a starting point in `GRASP` calculations. The code outputs an `ORBIN.DAT` file which can be used for `GRASP0` calculations (https://connorb.freeshell.org), and additionally a `rwfn.out` file that could be used for `GRASP2018` calculations (https://github.com/compas/grasp?tab=readme-ov-file). This is advantageous as the orbitals of `AUTOSTRUCTURE` can be scaled to suit the needs of the user.
+using routines from the standard numerical `FORTRAN` recipes. 
+Note as of 31.07.25 - `DARC` uses a slightly different grid - the above is not always 100% accurate and may lead to differences I will eventually fix. 
+The orbitals are then able to be used in `DARC` in a CI sense - using these semi-relativistic orbitals for an R-matrix calculation. Alternatively, these can be used as a starting point in `GRASP` calculations. The code outputs an `ORBIN.DAT` file which can be used for `GRASP0` calculations (https://connorb.freeshell.org), and additionally a `rwfn.out` file that could be used for `GRASP2018` calculations (https://github.com/compas/grasp?tab=readme-ov-file). This is advantageous as the orbitals of `AUTOSTRUCTURE` can be scaled to suit the needs of the user.
 
 The code is compiled simply with your compiler of choice, e.g 
 `gfortran autodarc.f90 -o autodarc.x`. The code is a simple utility one, and as such does not warrant anything more complex.
