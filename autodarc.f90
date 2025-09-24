@@ -535,7 +535,7 @@ program autodarc
 
         real*8 :: h 
 
-        integer, parameter :: darcDim = 200
+        integer, parameter :: darcDim = 250
 
         real*8 :: nf 
 
@@ -547,7 +547,7 @@ program autodarc
 
             !cff grid
         real*8 :: rho
-        real*8 :: hff = 1.d0/16.d0
+        real*8 :: hff = 1.d0/3.d0
         integer,parameter :: n0 = 220
         real*8 :: hfgrid(n0+1)
         real*8 :: selectedOrb(n0+1)
@@ -570,7 +570,12 @@ program autodarc
 
         !to interpoalte - need a small number of points
         !look at the CFF grid - performs the best
-        rho =  -4.d0 
+        rho =  -2.d0 
+        write(1235,*) '#',hff
+        hff = log(nzed*radial(size(radial))) - rho 
+        hff = hff / n0
+        write(1235,*) '#',hff
+
         do i = 1,n0 
             hfgrid(i+1) = exp(rho)/nzed
             rho = rho + hff
@@ -590,10 +595,12 @@ program autodarc
             rhoArray(ii) = (ii-1) * hff 
         end do 
 
-
+        !this is not correct...
         do ii = 1,darcDim
             darcRadial(ii) = rnt*(exp(hff*(ii-1))-1.0d0)
         end do
+
+        print*,'helloooo',darcRadial(darcDim)
 
         h = darcRadial(2)/10000.0d0
         !allocate(asp(num_points))
@@ -622,15 +629,20 @@ program autodarc
                     closestInd = minloc(abs(radial - hfgrid(ii+1)),1)
                     selectedOrb(ii+1) = orbitals(orbMap(jj),closestInd)
                     selectedgrid(ii+1) = radial(closestInd)
-                else 
                     numHFpoints = ii+1
+                else 
                     exit
                 end if 
             end do 
-            do ii = numHFpoints+1,n0 
-                selectedgrid(ii+1) = hfgrid(ii+1)
-            end do
+            !do ii = numHFpoints+1,n0 
+            !    selectedgrid(ii+1) = hfgrid(ii+1)
+            !end do
 
+            if (jj.eq.1) then 
+                do ii = 1,numHFpoints
+                    print*,'hello', selectedgrid(ii),selectedOrb(ii),hfgrid(ii)
+                end do 
+            end if
 
 
             orbForDeriv = 0.0d0 
@@ -644,24 +656,31 @@ program autodarc
             !For s orbitals - use the derivative at zero to get a better 
             !interpolation.
             if (kappaArray(jj).eq.-1) then 
-                !print*,'using more accuate',orbitalParams(orbmap(jj))
+                print*,'using more accuate',orbitalParams(orbmap(jj))
                 call spline(selectedgrid,selectedorb,numHFpoints,orbitalParams(orbmap(jj)),0.0d0,yy2)
             else 
                 call spline(selectedgrid,selectedorb,numHFpoints,0.0d0,0.0d0,yy2)
             end if 
-
             !Large component
             do ii = 2,darcDim
                 call splint(selectedgrid,selectedorb,yy2,numHFpoints,darcRadial(ii),orbitalsLarge(jj,ii))
                 call splint(selectedgrid,selectedorb,yy2,numHFpoints,darcRadial(ii)-h,orbForDeriv(ii,1))
                 call splint(selectedgrid,selectedorb,yy2,numHFpoints,darcRadial(ii)+h,orbForDeriv(ii,2))
             end do 
+            if (jj.eq. numRelOrbs) then
+                do ii = 1,size(selectedgrid) 
+                    write(1235,*) hfgrid(ii),selectedgrid(ii),numHFpoints
+                end do 
+            end if
 
             !Small component
             !SKIP POINT 1 = 0 
             do ii = 2,darcDim
                 derivative = (orbForDeriv(ii,2) - orbForDeriv(ii,1))/(2.0d0*h)
                 orbitalsSmall(jj,ii) = derivative + kappaArray(jj)*orbitalsLarge(jj,ii)/darcRadial(ii)
+                            if (jj.eq.numRelOrbs) then 
+                write(1234,*) darcRadial(ii),orbitalsLarge(jj,ii)
+        end if
             end do 
 
             orbitalsSmall(jj,:) = orbitalsSmall(jj,:) * 0.5d0 *fineStruc
@@ -673,6 +692,7 @@ program autodarc
 
 
         end do 
+
         write(*,2) rnt,darcDim+1,hff
         write(*,1000)
         write(*,1020)
