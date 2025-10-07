@@ -1,6 +1,6 @@
       SUBROUTINE AMOEBA(P,Y,MP,NP,NDIM,FTOL,FUNK,ITER)
       IMPLICIT REAL*8(A-H,O-Z)
-      PARAMETER (NMAX=20,ALPHA=1.0,BETA=0.5,GAMMA=2.0,ITMAX=500)
+      PARAMETER (NMAX=20,ALPHA=1.0,BETA=0.5,GAMMA=2.0,ITMAX=5000)
       PARAMETER (TINY=1.E-10)
       DIMENSION P(MP,NP),Y(MP),PR(NMAX),PRR(NMAX),PBAR(NMAX)
       MPTS=NDIM+1
@@ -27,7 +27,8 @@
       IF(ITER.EQ.ITMAX) THEN 
         !PRINT*, 'AMOEBA HAS FOUND',Y(IHI),Y(ILO),RTOL,FTOL
 
-        stop 'iterations exceeded in amoeba... ' 
+        write(0,*) 'iterations exceeded in amoeba... ' 
+        return
         !PAUSE 'Amoeba exceeding maximum iterations.'
       END IF 
       ITER=ITER+1

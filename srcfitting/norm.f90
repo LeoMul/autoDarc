@@ -8,4 +8,5 @@ function norm_slater(l,a)
     norm_slater = (2.0*a) ** (2*l+3)
     norm_slater = norm_slater / factorials_stored(2*l+2)
     norm_slater = sqrt(norm_slater)
+    print*,'ns = ',norm_slater
 end function

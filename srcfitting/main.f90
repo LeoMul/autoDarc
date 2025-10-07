@@ -4,31 +4,73 @@ program main
     use trapz
     use data_for_funk
     use minimization
+    use asorbs
     implicit none  
-    integer,parameter :: isize = 2
-    real(rkind) :: a(isize,isize)
-    real(rkind) :: b(isize)
-    real(rkind) :: c(isize)
-    real(rkind) :: alpha(isize)
+    integer :: isize
+    real(rkind),allocatable :: alpha(:)
     real(rkind) :: chisquared
-    integer :: ipiv(isize)
-    integer :: info 
-    integer :: ii 
-    integer :: l 
+
+    integer :: l ,index , ii
 
     real(rkind),allocatable :: rtest(:),ftest(:)
+
     integer :: npoints
     real*8 :: tt 
-    open(1,file='inptest')
-    read(1,*) npoints
-    allocate(rtest(npoints),ftest(npoints))
-    do  ii = 1,npoints
-        read(1,*) rtest(ii), ftest(ii)
-    end do
-    close(1)
-    mynpoints = npoints
 
     call init_factorials
+
+
+    !open(1,file='inptest')
+    !read(1,*) npoints
+    !allocate(rtest(npoints),ftest(npoints))
+    !do  ii = 1,npoints
+    !    read(1,*) rtest(ii), ftest(ii)
+    !end do
+    !close(1)
+    call read_radout
+    index = 2
+    isize = princN(index) + 2
+    print*,isize
+
+    allocate(lv(isize))
+    do ii = 1,isize 
+        lv(ii) = myl + ii - 1
+    end do
+    lv(:) = myl
+    allocate(alpha(isize))
+
+    npoints = num_points
+    myrad  = radial
+    myorb  = orbitals(index,:)
+    print*, myorb(1:4)
+
+    alpha(1)  = nzed 
+    !alpha(2:) = 5.0d0 
+
+    call random_number(alpha)
+    alpha = alpha * 10.0d0
+    alpha(1)  = nzed 
+
+    myl = orbL(index)
+    allocate(slaterorb(npoints))
+    rlp1 = myrad ** (myl + 1)
+    chisquared = chisq(alpha)
+    print*,myl
+
+    call flush 
+    print*,chisquared 
+
+    call minimize(alpha,isize,chisq)
+    
+    print*,alpha
+    do ii = 1,npoints 
+        write(100,*) myrad(ii),myorb(ii) ,slaterorb(ii)
+    end do 
+
+    stop 
+
+    mynpoints = npoints
+
 
 
     alpha(:) = 0.5d0
@@ -38,13 +80,13 @@ program main
     myl = l 
     myrad = rtest 
     myorb = ftest
-    allocate(slaterorb(npoints))
+    allocate(slaterorb(npoints)) 
     rlp1 = myrad ** (myl + 1)
     !call linlsq(alpha,c,isize,l,ftest,rtest,npoints)
 
     chisquared = chisq(alpha)
 
-    call minimize(alpha,isize,chisq)
+    !call minimize(alpha,isize,chisq)
 
     print*,alpha
 
@@ -59,7 +101,7 @@ program main
         real(rkind) :: dd 
         npoints = size(myrad)
 
-        call linlsq(alpha,c,isize,l,myorb,myrad,npoints)
+        call linlsq(alpha,c,isize,myl,myorb,myrad,npoints)
         !print*,c
         call construct_slater_fit(alpha,c,isize)
         chisq = 0.0 
