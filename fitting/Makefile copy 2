@@ -1,0 +1,22 @@
+EXE= main
+SRC=  kind_params.f90 trapz.f90
+
+#OBJS= \
+#	kind_params.o \
+#    trapz.o\
+#    amoeba.o\
+
+OBJS=${SRC:.f90=.o}
+
+FC = gfortran
+FC_FLAGS=-O3 -Wall -Wextra
+
+$(EXE): $(OBJS)
+	$(FC) -o $@ $? $(FC_LD) $(LIBS) $(LAPACK_LIBS)
+
+%.o: %.f90
+	$(FC) -c $(FC_FLAGS)  -o $@ $<
+
+clean:
+	-@rm $(EXE)
+	-@rm *.o *.mod
