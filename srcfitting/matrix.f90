@@ -27,15 +27,15 @@ subroutine make_a_matrix(amatrix,alphaarray,isize,l)
     real(rkind) :: a1,a2,n1,n2,fac 
     !external
     real(rkind),external ::norm_slater
-    !print*,'in make a matrix'
+    !write(1000,*) 'in make a matrix'
     fac = factorials_stored(2*l+2)
 
-    !print*,alphaarray(1)
+    !write(1000,*) alphaarray(1)
     !call flush
     do ii = 1,isize 
         a1 = alphaarray(ii)
         n1 = norm_slater(lv(ii),a1)
-        !print*,n1
+        !write(1000,*) n1
         do jj = 1,isize 
             a2 = alphaarray(jj)
             n2 = norm_slater(lv(jj),a2)
@@ -86,11 +86,11 @@ subroutine make_b_vector(bvector,alphaarray,isize,l,orbital,radial,npoints)
         bvector(ii) = trapz_int(radial,orbital*trialorb)
 
     end do 
-    print*,'---------------------------------------------'
-    print*, ' in b vector'
-    print*,'a= ',alphaarray
-    print*,'b= ',bvector
-    print*,'---------------------------------------------'
+    write(1000,* )'---------------------------------------------'
+    write(1000,* ) ' in b vector'
+    write(1000,* )'a= ',alphaarray
+    write(1000,* )'b= ',bvector
+    write(1000,* )'---------------------------------------------'
 
     !do ii = 1,size(radial)
     !    write(100,*) radial(ii),trialorb(ii)
@@ -116,32 +116,32 @@ subroutine get_c_vector(cvector,amatrix,bvector,ndim)
     integer(ikind) :: ii ,jj 
     cvector = bvector
     a = amatrix
-    print*,'---------------------------------------------'
+    write(1000,*) '---------------------------------------------'
 
     call DGETRF(ndim,ndim,A,ndim,IPIV,INFO)
     call DGETRS('N', ndim, 1, amatrix, ndim, ipiv, cvector, &
                ndim, info)
-    print*,'ndim = ',ndim 
-    print*,'info = ',info
-    print*,'raw c = ',cvector
+    write(1000,*) 'ndim = ',ndim 
+    write(1000,*) 'info = ',info
+    write(1000,*) 'raw c = ',cvector
     cnorm = 0.0d0 
     do ii = 1,ndim 
         c1 = cvector(ii)
         do jj = 1,ndim 
             c2 = cvector(jj)
             cnorm = cnorm + c1 * c2 * A(ii,jj)
-            print*,cnorm
+            write(1000,*) cnorm
 
         end do 
     end do 
     cnorm = sqrt(cnorm)
     cvector = cvector / cnorm
-    print*,'In c vector'
-    print*,'A=',amatrix
-    print*,'b=',bvector
-    print*,'corm=',cnorm
-    print*,'c=',cvector
-    print*,'---------------------------------------------'
+    write(1000,*) 'In c vector'
+    write(1000,*) 'A=',amatrix
+    write(1000,*) 'b=',bvector
+    write(1000,*) 'corm=',cnorm
+    write(1000,*) 'c=',cvector
+    write(1000,*) '---------------------------------------------'
 
 end subroutine
 
@@ -159,7 +159,7 @@ subroutine linlsq(alpha,c,isize,l,orbital,radial,np)
     call make_b_vector(b,alpha,isize,l,orbital,radial,np)
 
     call make_a_matrix(a,alpha,isize,l)
-    !print*,'going into c'
+    !write(1000,*) 'going into c'
     call get_c_vector(c,a,b,isize)
 
 end subroutine
@@ -182,7 +182,7 @@ subroutine construct_slater_fit(alpha,c,isize)
         slaterorb =  slaterorb + myrad**(lv(ii)+1) * &
                      c(ii) * norm_slater(lv(ii),a) * exp( - a * myrad)
     end do 
-    print*,'slater sum = ', sum(slaterorb)
+    write(1000,*) 'slater sum = ', sum(slaterorb)
     !slaterorb = slaterorb * rlp1
 
 end subroutine

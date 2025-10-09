@@ -29,7 +29,7 @@ program main
     !close(1)
     call read_radout
     index = 2
-    isize = princN(index) + 2
+    isize = 5
     print*,isize
 
     allocate(lv(isize))
@@ -47,9 +47,10 @@ program main
     alpha(1)  = nzed 
     !alpha(2:) = 5.0d0 
 
-    call random_number(alpha)
-    alpha = alpha * 10.0d0
-    alpha(1)  = nzed 
+    alpha(1)  = nzed / princN(index)
+    do ii = 2,isize 
+        alpha(ii) = 2 * alpha(ii-1)
+    end do 
 
     myl = orbL(index)
     allocate(slaterorb(npoints))
