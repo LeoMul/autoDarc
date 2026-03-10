@@ -73,7 +73,7 @@ program autodarc
     integer :: numRelOrbs 
 
     real*8 :: rnt
-    real*8 :: hff 
+    real*8 :: HHH 
 
     call optionalInput
 
@@ -599,10 +599,10 @@ program autodarc
         do ii = 1,darcDim
             darcRadial(ii) = rnt*(exp(hff*(ii-1))-1.0d0)
         end do
-
+        HHH = hff
         print*,'helloooo',darcRadial(darcDim)
 
-        h = darcRadial(2)/10000.0d0
+        h = darcRadial(2)/100.0d0
         !allocate(asp(num_points))
         !allocate(bsp(num_points))
         !allocate(csp(num_points))
@@ -637,10 +637,13 @@ program autodarc
             !do ii = numHFpoints+1,n0 
             !    selectedgrid(ii+1) = hfgrid(ii+1)
             !end do
+            
+
 
             if (jj.eq.1) then 
+                print*,'debug print out ='
                 do ii = 1,numHFpoints
-                    print*,'hello', selectedgrid(ii),selectedOrb(ii),hfgrid(ii)
+                    print*,'hello', selectedgrid(ii),selectedOrb(ii),hfgrid(ii),hfgrid(ii)-selectedgrid(ii)
                 end do 
             end if
 
@@ -743,6 +746,9 @@ program autodarc
 
         close(2)
 
+        do iter_grid = 1,num_points
+            write(123123,*) darcRadial(iter_grid) , ( orbitalsLarge(iter_orbs,iter_grid),orbitalsSmall(iter_orbs,iter_grid),iter_orbs=1,numRelOrbs)
+        end do 
         3040 FORMAT (1X,2I7)
         3050 FORMAT (1X,1P,4E16.8)
         3060 FORMAT (1X,I4,2X,I4)
@@ -782,8 +788,8 @@ program autodarc
         do i = 1,numRelOrbs
             pzi = orbitalParams(orbmap(i))
             qzi = qzfunc(pzi,kappaArray(i))
-
-            WRITE(2) angular_string(i),princNREL(i),kappaArray(i),num,nzed,hff,rnt, &
+            !print*,'hello my name is ',hff
+            WRITE(2) angular_string(i),princNREL(i),kappaArray(i),num,nzed,HHH,rnt, &
                      orbitalEnergy(orbmap(i)),pzi,qzi
             WRITE(2) (orbitalsLarge(I,j),j=1,num),(orbitalsSmall(I,j),j=1,num)
         end do 
